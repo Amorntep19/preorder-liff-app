@@ -3,101 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เมนูสั่งซื้อ</title>
+    <title>Pre-order ป.5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            padding: 20px; 
-            background-color: #f4f4f4; 
-            color: #333;
-        }
-        h1 { font-size: 24px; text-align: center; color: #06C755; }
-        #menu-list { 
-            background: white; 
-            padding: 15px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .loading { color: #666; text-align: center; padding: 20px; }
-        .menu-item { 
-            border-bottom: 1px solid #eee; 
-            padding: 12px 0; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .menu-item:last-child { border-bottom: none; }
-        .menu-name { font-weight: bold; font-size: 16px; }
-        .menu-price { color: #e74c3c; font-weight: bold; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        .cart-anim { transition: all 0.3s ease-in-out; }
     </style>
 </head>
-<body>
-    <h1>รายการเมนูสั่งซื้อ</h1>
-    <div id="menu-list">
-        <div class="loading">กำลังโหลดข้อมูลเมนู...</div>
+<body class="pb-32">
+
+    <!-- Header Section -->
+    <header class="bg-blue-600 text-white p-4 sticky top-0 z-10 shadow-md">
+        <div class="max-w-md mx-auto">
+            <h1 class="font-bold text-lg">📢 Pre-order ป.5</h1>
+            <p class="text-sm text-blue-100">รับของ พฤ. 20 ส.ค. 2026 | ปิดรับ 18 ส.ค.</p>
+            <div class="mt-2 text-xs text-blue-200">
+                <span id="user-name">กำลังตรวจสอบผู้ใช้...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Loading -->
+    <div id="loading" class="flex flex-col items-center justify-center py-20">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+        <p class="text-gray-500 text-sm">กำลังโหลดเมนู...</p>
     </div>
 
-    <!-- โหลด LINE LIFF SDK -->
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script>
-        // 👉 1. นำ Web App URL ของ Google Apps Script มาใส่ตรงนี้
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxM0PkNAe_iildylV1_QeNep887KvvhlU0VmAA9G3rq54Nw4BDuxgrA7wmTLrruqMXmOA/exec";
+    <!-- Main Content -->
+    <main class="max-w-md mx-auto p-4 hidden" id="main-content">
+        <div id="product-container"></div>
         
-        // 👉 2. นำ LIFF ID ของคุณมาใส่ตรงนี้
-        const LIFF_ID = "2011064179-qkVepwXf";
+        <!-- Payment Info -->
+        <div class="mt-8 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <h3 class="font-bold text-gray-800 border-b pb-2 mb-2">💳 ช่องทางการชำระเงิน</h3>
+            <p class="text-sm text-gray-600 mb-1">ธนาคารไทยพาณิชย์ (SCB)</p>
+            <p class="font-bold text-lg text-blue-700">096-237-7763</p>
+            <p class="text-sm text-gray-600">ชื่อบัญชี: กฤติยา ปัญญา</p>
+            <p class="text-xs text-red-500 mt-2">* รบกวนโอนเงินก่อนปิดรอบออเดอร์นะคะ ขอบคุณค่ะ 🙏</p>
+        </div>
+    </main>
 
-        async function loadMenu() {
-            const container = document.getElementById('menu-list');
-            
-            // ใช้ Cache เก่าแสดงผลก่อนเพื่อความเร็ว (ถ้ามี)
+    <!-- Cart Modal / Summary Bottom Sheet -->
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-20 cart-anim">
+        <div id="cart-items-container" class="max-w-md mx-auto max-h-40 overflow-y-auto p-4 hidden bg-gray-50 border-b border-gray-200">
+            <h4 class="text-xs font-bold text-gray-500 mb-2">รายการที่เลือก:</h4>
+            <div id="cart-list" class="space-y-2 text-sm text-gray-700"></div>
+        </div>
+
+        <div class="max-w-md mx-auto flex justify-between items-center p-4">
+            <div>
+                <p class="text-xs text-gray-500">ราคารวม (<span id="cart-count">0</span> ชิ้น)</p>
+                <p class="text-xl font-bold text-blue-600">฿<span id="total-price">0</span></p>
+            </div>
+            <button onclick="submitOrder()" id="btn-submit" disabled class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold shadow hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
+                สั่งซื้อ
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const LIFF_ID = "2011064179-qkVepwXf"; // เปลี่ยนเป็น LIFF ID ของคุณ
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxM0PkNAe_iildylV1_QeNep887KvvhlU0VmAA9G3rq54Nw4BDuxgrA7wmTLrruqMXmOA/exec"; // เปลี่ยนเป็น GAS URL ของคุณ
+        let userProfile = null;
+        let productsData = [];
+        let cart = {}; 
+
+        async function initApp() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (liff.isLoggedIn()) {
+                    userProfile = await liff.getProfile();
+                    document.getElementById("user-name").innerText = `👤 คุณ ${userProfile.displayName}`;
+                } else {
+                    document.getElementById("user-name").innerText = `👤 ผู้ใช้งานทั่วไป`;
+                }
+                fetchProducts();
+            } catch (err) {
+                console.error("LIFF Error:", err);
+                fetchProducts(); // เผื่อกรณีเทสบนบราวเซอร์ปกติ
+            }
+        }
+
+        async function fetchProducts() {
             const cachedData = localStorage.getItem('menuData');
             if (cachedData) {
-                renderMenu(JSON.parse(cachedData));
+                productsData = JSON.parse(cachedData);
+                renderProducts();
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("main-content").classList.remove("hidden");
             }
 
             try {
-                // ดึงข้อมูลใหม่ผ่าน fetch() ซึ่งเสถียรและเร็วกว่าบนมือถือ
                 const response = await fetch(GAS_URL);
                 const data = await response.json();
-                
-                // บันทึก Cache ใหม่และเรนเดอร์หน้าจอ
-                localStorage.setItem('menuData', JSON.stringify(data));
-                renderMenu(data);
-            } catch (error) {
-                console.error('Error loading menu:', error);
+                if (data && data.length > 0) {
+                    productsData = data;
+                    localStorage.setItem('menuData', JSON.stringify(data));
+                    renderProducts();
+                }
+                document.getElementById("loading").classList.add("hidden");
+                document.getElementById("main-content").classList.remove("hidden");
+            } catch (err) {
+                console.error("Fetch Error:", err);
                 if (!cachedData) {
-                    container.innerHTML = '<p style="color: red; text-align: center;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+                    document.getElementById("loading").innerHTML = '<p class="text-red-500">โหลดข้อมูลไม่สำเร็จ</p>';
                 }
             }
         }
 
-        function renderMenu(data) {
-            const container = document.getElementById('menu-list');
-            if (!data || data.length === 0) {
-                container.innerHTML = '<p style="text-align: center;">ไม่พบรายการเมนู</p>';
-                return;
-            }
+        function renderProducts() {
+            const container = document.getElementById("product-container");
+            container.innerHTML = "";
 
-            container.innerHTML = data.map(item => `
-                <div class="menu-item">
-                    <span class="menu-name">${item.name}</span>
-                    <span class="menu-price">${item.price} บาท</span>
-                </div>
-            `).join('');
+            // จัดกลุ่มสินค้าตาม ProductCat
+            const categories = [...new Set(productsData.map(p => p.ProductCat))];
+
+            categories.forEach(cat => {
+                const catDiv = document.createElement("div");
+                catDiv.innerHTML = `<h2 class="font-bold text-lg text-blue-800 mt-6 mb-3 border-b-2 border-blue-200 pb-1">${cat}</h2>`;
+                
+                const items = productsData.filter(p => p.ProductCat === cat && p.Status === "Active");
+                items.forEach(item => {
+                    const itemDiv = document.createElement("div");
+                    itemDiv.className = "bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-3";
+                    
+                    let optionHtml = "";
+                    if (item.Options && item.Options.trim() !== "") {
+                        const optArray = item.Options.split(',').map(s => s.trim());
+                        let optionList = optArray.map(opt => `<option value="${opt}">${opt}</option>`).join("");
+                        optionHtml = `
+                            <select id="opt-${item.ProductID}" class="mt-2 text-sm bg-gray-50 border border-gray-300 text-gray-900 rounded-md block w-full p-1.5 focus:ring-blue-500 focus:border-blue-500">
+                                ${optionList}
+                            </select>
+                        `;
+                    }
+
+                    itemDiv.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="flex-grow pr-2">
+                                <h3 class="font-bold text-gray-800 text-sm leading-tight">${item.ProductName}</h3>
+                                <p class="text-blue-600 font-bold text-sm mt-1">฿${item.ProductPrice}</p>
+                            </div>
+                            <button onclick="addToCart('${item.ProductID}')" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-200 shrink-0">
+                                + เพิ่ม
+                            </button>
+                        </div>
+                        ${optionHtml}
+                    `;
+                    catDiv.appendChild(itemDiv);
+                });
+
+                container.appendChild(catDiv);
+            });
         }
 
-        // เริ่มต้นทำงานเมื่อเปิดผ่าน LIFF
-        liff.init({ liffId: LIFF_ID })
-            .then(() => {
-                loadMenu();
-            })
-            .catch(err => {
-                console.error("LIFF Init failed", err);
-                // เผื่อกรณีรันเทสบน Browser นอก LINE ให้ยังโหลดเมนูได้ปกติ
-                loadMenu();
+        function addToCart(productId) {
+            const product = productsData.find(p => p.ProductID === productId);
+            let selectedOption = "";
+            const selectElem = document.getElementById(`opt-${productId}`);
+            if (selectElem) {
+                selectedOption = selectElem.value;
+            }
+
+            const cartKey = `${productId}_${selectedOption}`;
+
+            if (cart[cartKey]) {
+                cart[cartKey].qty += 1;
+            } else {
+                cart[cartKey] = {
+                    product: product,
+                    qty: 1,
+                    option: selectedOption
+                };
+            }
+
+            updateSummary();
+        }
+
+        function removeCartItem(cartKey) {
+            if (cart[cartKey]) {
+                cart[cartKey].qty -= 1;
+                if (cart[cartKey].qty <= 0) {
+                    delete cart[cartKey];
+                }
+            }
+            updateSummary();
+        }
+
+        function addToCartItem(cartKey) {
+            if (cart[cartKey]) {
+                cart[cartKey].qty += 1;
+                updateSummary();
+            }
+        }
+
+        function updateSummary() {
+            const cartList = document.getElementById("cart-list");
+            const cartContainer = document.getElementById("cart-items-container");
+            
+            cartList.innerHTML = "";
+            let totalItems = 0;
+            let totalPrice = 0;
+
+            Object.keys(cart).forEach(key => {
+                const item = cart[key];
+                totalItems += item.qty;
+                totalPrice += Number(item.product.ProductPrice) * item.qty;
+                
+                const optionText = item.option ? `<span class="text-gray-500 ml-1">(${item.option})</span>` : "";
+                
+                const row = document.createElement("div");
+                row.className = "flex justify-between items-center bg-white p-2 rounded border border-gray-100";
+                row.innerHTML = `
+                    <div class="flex-grow truncate text-xs pr-2">
+                        <b>${item.product.ProductName}</b> ${optionText} <br>
+                        <span class="text-blue-500">฿${Number(item.product.ProductPrice) * item.qty}</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="removeCartItem('${key}')" class="w-6 h-6 bg-gray-200 text-gray-700 font-bold rounded flex items-center justify-center">-</button>
+                        <span class="font-bold text-sm w-4 text-center">${item.qty}</span>
+                        <button onclick="addToCartItem('${key}')" class="w-6 h-6 bg-blue-100 text-blue-700 font-bold rounded flex items-center justify-center">+</button>
+                    </div>
+                `;
+                cartList.appendChild(row);
             });
+
+            if (totalItems > 0) {
+                cartContainer.classList.remove("hidden");
+            } else {
+                cartContainer.classList.add("hidden");
+            }
+
+            document.getElementById("cart-count").innerText = totalItems;
+            document.getElementById("total-price").innerText = totalPrice;
+            document.getElementById("btn-submit").disabled = totalItems === 0;
+        }
+
+        async function submitOrder() {
+            const btn = document.getElementById("btn-submit");
+            btn.disabled = true;
+            btn.innerText = "กำลังสั่งซื้อ...";
+
+            const orderItems = Object.keys(cart).map(key => {
+                const item = cart[key];
+                return {
+                    productId: item.product.ProductID,
+                    name: item.product.ProductName,
+                    selectedOption: item.option,
+                    qty: item.qty,
+                    price: item.product.ProductPrice,
+                    subtotal: Number(item.product.ProductPrice) * item.qty
+                };
+            });
+
+            const totalAmount = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
+            const displayName = userProfile ? userProfile.displayName : "ลูกค้าทั่วไป";
+            const userId = userProfile ? userProfile.userId : "N/A";
+
+            const payload = {
+                userId: userId,
+                displayName: displayName,
+                cart: orderItems,
+                totalPrice: totalAmount
+            };
+
+            try {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (liff.isInClient()) {
+                    let msg = `📢 สรุปรายการสั่งซื้อ (รับของ 20 ส.ค.)\n`;
+                    msg += `👤 คุณ ${displayName}\n`;
+                    msg += `----------------------\n`;
+                    orderItems.forEach(i => {
+                        let opt = i.selectedOption ? ` (${i.selectedOption})` : "";
+                        msg += `- ${i.name}${opt} x${i.qty} = ฿${i.subtotal}\n`;
+                    });
+                    msg += `----------------------\n`;
+                    msg += `💰 ยอดรวมที่ต้องโอน: ฿${totalAmount}\n\n`;
+                    msg += `💳 SCB: 096-237-7763\nชื่อ: กฤติยา ปัญญา\n`;
+                    msg += `(รบกวนส่งสลิปโอนเงินยืนยันในแชทนี้ด้วยนะคะ 🙏)`;
+
+                    await liff.sendMessages([{ type: 'text', text: msg }]);
+                }
+
+                alert("ส่งคำสั่งซื้อเรียบร้อย กรุณาโอนเงินและส่งสลิปในแชทครับ");
+                liff.closeWindow();
+
+            } catch (err) {
+                alert("เกิดข้อผิดพลาดในการสั่งซื้อ");
+                btn.disabled = false;
+                btn.innerText = "สั่งซื้อ";
+            }
+        }
+
+        window.onload = initApp;
     </script>
 </body>
 </html>
